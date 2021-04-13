@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/romanlevin/crawler-go/link_queue"
 	"github.com/romanlevin/crawler-go/link_set"
@@ -15,7 +16,7 @@ import (
 	"strings"
 )
 
-func fetchPage(link string, client *http.Client, localPath string) ([]byte, error) {
+func fetchPage(ctx context.Context, link string, client *http.Client, localPath string) ([]byte, error) {
 	// Check if the path exists locally, and return its contents if it does
 	if body, err := os.ReadFile(localPath); err == nil {
 		log.Printf("read %q from disk", link)
@@ -23,7 +24,12 @@ func fetchPage(link string, client *http.Client, localPath string) ([]byte, erro
 	}
 
 	// If the local path does not contain a file, fetch its contents using `link`
-	resp, err := client.Get(link)
+	request, err := http.NewRequestWithContext(ctx, "GET", link, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +151,13 @@ func urlDefrag(linkURL string) (string, error) {
 	return parsedLinkURL.String(), nil
 }
 
-func processUrl(link string, client *http.Client, seenLinks *link_set.LinkSet, toCrawl *link_queue.LinkQueue, start string, outDir string) error {
+func processUrl(ctx context.Context, link string, client *http.Client, seenLinks *link_set.LinkSet, toCrawl *link_queue.LinkQueue, start string, outDir string) error {
 	localPath, err := fileName(link, start, outDir)
 	if err != nil {
 		return err
 	}
 
-	page, err := fetchPage(link, client, localPath)
+	page, err := fetchPage(ctx, link, client, localPath)
 	if err != nil {
 		return err
 	}
@@ -196,7 +202,7 @@ func processUrl(link string, client *http.Client, seenLinks *link_set.LinkSet, t
 	return nil
 }
 
-func crawl(start string, outDir string) error {
+func crawl(ctx context.Context, start string, outDir string) error {
 	client := &http.Client{}
 
 	seenLinks := link_set.New()
@@ -208,7 +214,7 @@ func crawl(start string, outDir string) error {
 
 	for {
 		if currentUrl := toCrawl.Pop(); currentUrl != "" {
-			if err := processUrl(currentUrl, client, seenLinks, toCrawl, start, outDir); err != nil {
+			if err := processUrl(ctx, currentUrl, client, seenLinks, toCrawl, start, outDir); err != nil {
 				return err
 			}
 		}
@@ -227,7 +233,9 @@ func main() {
 
 	outDir := os.Args[2]
 
-	if err := crawl(start, outDir); err != nil {
+	ctx := context.TODO()
+
+	if err := crawl(ctx, start, outDir); err != nil {
 		log.Fatalln(err)
 	}
 }
