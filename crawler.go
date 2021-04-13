@@ -16,6 +16,7 @@ import (
 	"strings"
 )
 
+// fetchPage returns the body of a page from disk if it's already been written, otherwise fetches it using HTTP
 func fetchPage(ctx context.Context, link string, client *http.Client, localPath string) ([]byte, error) {
 	// Check if the path exists locally, and return its contents if it does
 	if body, err := os.ReadFile(localPath); err == nil {
@@ -44,6 +45,7 @@ func fetchPage(ctx context.Context, link string, client *http.Client, localPath 
 	return body, nil
 }
 
+// getLinks returns a slice of the values of the `href` attributes of all the `<a>` tags in an HTML page
 func getLinks(page []byte) ([]string, error) {
 	doc, err := html.Parse(bytes.NewReader(page))
 	var links []string
@@ -69,6 +71,7 @@ func getLinks(page []byte) ([]string, error) {
 	return links, nil
 }
 
+// writePage writes a `page` to `path` unless a file already exists there
 func writePage(page []byte, path string) error {
 	if fileInfo, err := os.Stat(path); err == nil {
 		if fileInfo.Mode().IsRegular() {
@@ -141,6 +144,7 @@ func fileName(link string, start string, outDir string) (string, error) {
 	return filepath.Join(outDir, filepath.FromSlash(path)), nil
 }
 
+// urlDefrag returns `linkURL` minus its fragment portion
 func urlDefrag(linkURL string) (string, error) {
 	parsedLinkURL, err := url.Parse(linkURL)
 	if err != nil {
@@ -202,6 +206,7 @@ func processUrl(ctx context.Context, link string, client *http.Client, seenLinks
 	return nil
 }
 
+// crawl crawls a website at `start`, saving its pages to `outDir`
 func crawl(ctx context.Context, start string, outDir string) error {
 	client := &http.Client{}
 
